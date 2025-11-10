@@ -11,7 +11,7 @@ from backend.vector_store import create_vectorstore, load_vectorstore
 from backend.rag_engine import build_qa_chain
 from backend.sql_agent import build_sql_agent
 
-def run_with_feedback(agent, query, max_attempts=3):
+def run_with_feedback(agent, query, max_attempts=1):
     attempt = 0
     last_error = ""
     while attempt < max_attempts:
