@@ -1,0 +1,414 @@
+<!DOCTYPE html>
+<html lang="en" class="dark">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+  <title>Moodle RAG Assistant — Dark Only</title>
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+  <style>
+    @import url('https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap');
+    * { font-family: 'Inter', sans-serif; box-sizing: border-box; }
+
+    /* Dark-only theme styles */
+    html, body {
+      background: linear-gradient(135deg, #0f172a 0%, #111827 100%); /* darker gradient */
+      min-height: 100vh;
+      color: #e6eef8; /* primary text color for dark mode */
+    }
+
+    .glass-card {
+      background: rgba(15, 23, 42, 0.85);
+      backdrop-filter: blur(8px);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      box-shadow: 0 8px 32px rgba(2,6,23,0.6);
+    }
+
+    .bubble {
+      max-width: 100%;
+      padding: 16px 20px;
+      border-radius: 16px;
+      margin-bottom: 12px;
+      word-wrap: break-word;
+      animation: slideIn 0.22s ease-out;
+      box-shadow: 0 2px 8px rgba(2,6,23,0.6);
+      color: inherit;
+    }
+
+    .bubble.user {
+      background: linear-gradient(135deg, #4338ca 0%, #7c3aed 100%);
+      color: white;
+      margin-left: auto;
+      max-width: 80%;
+    }
+
+    .bubble.assistant {
+      background: rgba(20, 30, 48, 0.9);
+      color: #e6eef8;
+      border: 1px solid rgba(255,255,255,0.04);
+      max-width: 80%;
+    }
+
+    .bubble.assistant * { color: inherit; }
+
+    @keyframes slideIn {
+      from { opacity: 0; transform: translateY(6px); }
+      to { opacity: 1; transform: translateY(0); }
+    }
+
+    .input-modern {
+      background: rgba(10, 14, 22, 0.7);
+      border: 2px solid transparent;
+      transition: all 0.22s ease;
+      color: #e6eef8;
+    }
+
+    .input-modern:focus {
+      border-color: #7c3aed;
+      box-shadow: 0 0 0 6px rgba(124,58,237,0.08);
+      outline: none;
+    }
+
+    .btn-gradient {
+      background: linear-gradient(135deg, #6d28d9 0%, #0ea5e9 100%);
+      border: none;
+      color: white;
+      font-weight: 600;
+      transition: all 0.22s ease;
+      box-shadow: 0 6px 20px rgba(14,165,233,0.12);
+    }
+    .btn-gradient:hover { transform: translateY(-2px); }
+
+    .section-divider {
+      border-top: 1px solid rgba(255,255,255,0.04);
+      margin: 20px 0;
+    }
+
+    /* Specific text colors used in components */
+    .muted { color: rgba(230,238,248,0.6); }
+    .small { font-size: 0.9rem; }
+
+    /* Make radio labels fully clickable */
+    label[for] { cursor: pointer; }
+
+    /* History item hover */
+    .history-item:hover { background: rgba(255,255,255,0.02); }
+
+    /* Ensure file label text stays visible */
+    .file-label p { color: #e6eef8; }
+    .file-label .hint { color: rgba(230,238,248,0.6); font-size: 0.9rem; }
+
+    /* Chart canvas container styling */
+    #chartCanvas { background: rgba(2,6,23,0.55); border-radius: 12px; padding: 12px; }
+
+    /* Responsive tweaks */
+    @media (max-width: 640px) {
+      .glass-card { padding: 18px; }
+      .bubble { padding: 12px 14px; }
+    }
+  </style>
+</head>
+<body class="min-h-screen py-8 px-4">
+
+  <div class="max-w-5xl mx-auto">
+    <div class="glass-card rounded-3xl p-8 transition-all duration-300">
+      
+      <!-- Header -->
+      <div class="flex justify-between items-center mb-8">
+        <div class="flex items-center gap-3">
+          <div class="w-12 h-12 bg-gradient-to-br from-indigo-700 to-purple-700 rounded-xl flex items-center justify-center">
+            <i class="fas fa-brain text-white text-2xl"></i>
+          </div>
+          <div>
+            <h1 class="text-3xl font-bold" style="background:linear-gradient(90deg,#93c5fd,#c084fc); -webkit-background-clip: text; color: transparent;">
+              Moodle RAG Assistant
+            </h1>
+            <p class="small muted">AI-Powered Document Analysis</p>
+          </div>
+        </div>
+        <!-- theme toggle removed (dark-only) -->
+      </div>
+
+      <div class="grid md:grid-cols-2 gap-8 mb-8">
+        <!-- Upload -->
+        <div class="space-y-4">
+          <div class="flex items-center gap-2 mb-4">
+            <div class="w-8 h-8 bg-indigo-900/50 rounded-lg flex items-center justify-center">
+              <i class="fas fa-upload text-indigo-300"></i>
+            </div>
+            <h2 class="text-xl font-semibold">Upload Document</h2>
+          </div>
+          
+          <form id="uploadForm" class="space-y-4">
+            <div class="relative">
+              <input type="file" id="fileInput" name="file" accept="application/pdf" class="hidden" />
+              <label for="fileInput" 
+                class="file-label flex items-center justify-center gap-3 p-6 border-2 border-dashed rounded-xl cursor-pointer hover:border-indigo-400 transition-all bg-gradient-to-tr from-transparent to-transparent">
+                <i class="fas fa-file-pdf text-3xl text-red-400"></i>
+                <div class="text-center">
+                  <p class="font-medium">Choose PDF file</p>
+                  <p id="fileName" class="hint">or drag and drop</p>
+                </div>
+              </label>
+            </div>
+            <button type="submit" class="w-full py-3 px-6 btn-gradient rounded-xl font-medium flex items-center justify-center gap-2">
+              <i class="fas fa-cloud-upload-alt"></i>
+              Upload Document
+            </button>
+          </form>
+        </div>
+
+        <!-- Query Selection -->
+        <div class="space-y-4">
+          <div class="flex items-center gap-2 mb-4">
+            <div class="w-8 h-8 bg-indigo-900/30 rounded-lg flex items-center justify-center">
+              <i class="fas fa-sliders-h text-indigo-300"></i>
+            </div>
+            <h2 class="text-xl font-semibold">Query Settings</h2>
+          </div>
+          
+          <div class="space-y-3">
+            <label id="structuredLabel" class="flex items-center gap-3 p-4 border-2 border-transparent rounded-xl cursor-pointer hover:border-indigo-500 transition-all bg-transparent">
+              <input type="radio" name="queryType" value="structured" class="w-5 h-5 text-indigo-400 focus:ring-indigo-400" />
+              <div class="flex items-center gap-3 flex-1">
+                <i class="fas fa-chart-bar text-indigo-300 text-xl"></i>
+                <div>
+                  <p class="font-medium">Structured Query</p>
+                  <p class="small muted">Databases only</p>
+                </div>
+              </div>
+            </label>
+            
+            <label id="unstructuredLabel" class="flex items-center gap-3 p-4 border-2 border-indigo-500 rounded-xl cursor-pointer bg-indigo-900/20 transition-all">
+              <input type="radio" name="queryType" value="unstructured" checked class="w-5 h-5 text-indigo-400 focus:ring-indigo-400" />
+              <div class="flex items-center gap-3 flex-1">
+                <i class="fas fa-align-left text-indigo-300 text-xl"></i>
+                <div>
+                  <p class="font-medium">Unstructured Query</p>
+                  <p class="small muted">Suitable for documents</p>
+                </div>
+              </div>
+            </label>
+          </div>
+        </div>
+      </div>
+
+      <div class="section-divider"></div>
+
+      <!-- Query Input -->
+      <div class="mb-8">
+        <div class="flex items-center gap-2 mb-4">
+          <div class="w-8 h-8 bg-green-900/30 rounded-lg flex items-center justify-center">
+            <i class="fas fa-question-circle text-green-300"></i>
+          </div>
+          <h2 class="text-xl font-semibold">Ask a Question</h2>
+        </div>
+        
+        <div class="flex gap-3">
+          <div class="flex-1 relative">
+            <i class="fas fa-search absolute left-4 top-1/2 transform -translate-y-1/2 text-gray-400"></i>
+            <input type="text" id="queryInput" placeholder="What would you like to know..." class="w-full pl-12 pr-4 py-4 input-modern rounded-xl" />
+          </div>
+          <button id="queryButton" class="px-8 py-4 btn-gradient rounded-xl font-medium flex items-center gap-2">
+            <i class="fas fa-paper-plane"></i>
+            Send
+          </button>
+          <button id="clearBtn" class="px-6 py-4 bg-red-900/20 text-red-300 rounded-xl font-medium hover:bg-red-900/30 transition-all">
+            <i class="fas fa-trash-alt"></i>
+          </button>
+        </div>
+      </div>
+
+      <!-- Conversation -->
+      <div class="mb-8">
+        <div class="flex items-center gap-2 mb-4">
+          <div class="w-8 h-8 bg-blue-900/30 rounded-lg flex items-center justify-center">
+            <i class="fas fa-comments text-blue-300"></i>
+          </div>
+          <h2 class="text-xl font-semibold">Conversation</h2>
+        </div>
+        
+        <div class="rounded-xl p-6 min-h-[300px] max-h-[500px] overflow-y-auto" id="chatBox" style="background: rgba(3,7,18,0.45);">
+          <div class="text-center muted py-12">
+            <i class="fas fa-robot text-5xl mb-4 opacity-50"></i>
+            <p>Start by uploading a document and asking a question</p>
+          </div>
+        </div>
+        
+        <canvas id="chartCanvas" class="w-full mt-4 hidden"></canvas>
+      </div>
+
+      <div class="section-divider"></div>
+
+      <!-- History -->
+      <div>
+        <div class="flex items-center gap-2 mb-4">
+          <div class="w-8 h-8 bg-amber-900/30 rounded-lg flex items-center justify-center">
+            <i class="fas fa-history text-amber-300"></i>
+          </div>
+          <h2 class="text-xl font-semibold">Recent Queries</h2>
+        </div>
+        
+        <div class="rounded-xl p-4" style="background: rgba(3,7,18,0.35);">
+          <ul id="historyList" class="space-y-2 small muted"></ul>
+        </div>
+      </div>
+      
+    </div>
+  </div>
+
+  <script>
+    // DOM refs
+    const queryInput = document.getElementById("queryInput");
+    const queryButton = document.getElementById("queryButton");
+    const queryRadios = document.querySelectorAll('input[name="queryType"]');
+    const uploadForm = document.getElementById("uploadForm");
+    const chatBox = document.getElementById("chatBox");
+    const clearBtn = document.getElementById("clearBtn");
+    const historyList = document.getElementById("historyList");
+    const chartCanvas = document.getElementById("chartCanvas");
+    const fileInput = document.getElementById("fileInput");
+    const fileName = document.getElementById("fileName");
+    const structuredLabel = document.getElementById("structuredLabel");
+    const unstructuredLabel = document.getElementById("unstructuredLabel");
+    let myChart = null;
+
+    // Ensure page stays dark (redundant since <html class="dark"> is set)
+    document.documentElement.classList.add('dark');
+
+    // Update label styles depending on checked radio
+    function updateQueryLabels() {
+      const checked = document.querySelector('input[name="queryType"]:checked')?.value;
+      if (checked === 'structured') {
+        structuredLabel.className = "flex items-center gap-3 p-4 border-2 border-indigo-500 rounded-xl cursor-pointer bg-indigo-900/20 transition-all";
+        unstructuredLabel.className = "flex items-center gap-3 p-4 border-2 border-transparent rounded-xl cursor-pointer hover:border-indigo-500 transition-all bg-transparent";
+      } else {
+        unstructuredLabel.className = "flex items-center gap-3 p-4 border-2 border-indigo-500 rounded-xl cursor-pointer bg-indigo-900/20 transition-all";
+        structuredLabel.className = "flex items-center gap-3 p-4 border-2 border-transparent rounded-xl cursor-pointer hover:border-indigo-500 transition-all bg-transparent";
+      }
+    }
+    queryRadios.forEach(radio => radio.addEventListener('change', updateQueryLabels));
+    updateQueryLabels(); // run at load
+
+    // File input handler
+    fileInput.onchange = (e) => {
+      const file = e.target.files[0];
+      if (file) fileName.textContent = file.name;
+    };
+
+    // Upload form
+    uploadForm.onsubmit = async (e) => {
+      e.preventDefault();
+      const file = fileInput.files[0];
+      if (!file) {
+        addBubble("Please select a PDF file first", "assistant", "warning");
+        return;
+      }
+      addBubble("Uploading your document...", "assistant", "info");
+      const formData = new FormData();
+      formData.append("file", file);
+      try {
+        const res = await fetch("http://127.0.0.1:5000/upload", { method: "POST", body: formData });
+        const data = await res.json();
+        addBubble(res.ok ? `✓ ${data.message}` : `✗ Upload error: ${data.message || data.error}`, "assistant", res.ok ? "success" : "error");
+      } catch {
+        addBubble("Failed to connect to server. Please ensure the backend is running.", "assistant", "error");
+      }
+    };
+
+    // Query button
+    queryButton.onclick = async () => {
+      const query = queryInput.value.trim();
+      const type = document.querySelector('input[name="queryType"]:checked').value;
+      if (!query) {
+        addBubble("Please enter a question", "assistant", "warning");
+        return;
+      }
+      addBubble(query, "user");
+      queryInput.value = "";
+      const thinking = addBubble("Analyzing your question...", "assistant", "info", true);
+      try {
+        const res = await fetch(`http://127.0.0.1:5000/${type === "structured" ? "structured-query" : "query"}`, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ query })
+        });
+        const data = await res.json();
+        thinking.remove();
+        if (res.ok) {
+          const content = data.response;
+          if (isChartJson(content)) {
+            renderChart(JSON.parse(content));
+            addBubble("Chart generated successfully", "assistant", "success");
+          } else {
+            chartCanvas.classList.add("hidden");
+            addBubble(content, "assistant");
+          }
+        } else {
+          addBubble(`Error: ${data.error || "Query failed"}`, "assistant", "error");
+        }
+        addToHistory(query);
+      } catch {
+        thinking.remove();
+        addBubble("Failed to connect to server. Please ensure the backend is running.", "assistant", "error");
+      }
+    };
+
+    // Clear UI
+    clearBtn.onclick = () => {
+      queryInput.value = "";
+      chatBox.innerHTML = `
+        <div class="text-center muted py-12">
+          <i class="fas fa-robot text-5xl mb-4 opacity-50"></i>
+          <p>Start by uploading a document and asking a question</p>
+        </div>
+      `;
+      chartCanvas.classList.add("hidden");
+    };
+
+    // Enter to send
+    queryInput.onkeypress = (e) => {
+      if (e.key === "Enter") queryButton.click();
+    };
+
+    // Chat helpers
+    function addBubble(text, type = "assistant", status = null, temporary = false) {
+      if (chatBox.querySelector(".text-center")) chatBox.innerHTML = "";
+      const bubble = document.createElement("div");
+      bubble.className = `bubble ${type}`;
+      let icon = "";
+      if (status === "success") icon = '<i class="fas fa-check-circle mr-2"></i>';
+      else if (status === "error") icon = '<i class="fas fa-times-circle mr-2"></i>';
+      else if (status === "warning") icon = '<i class="fas fa-exclamation-triangle mr-2"></i>';
+      else if (status === "info") icon = '<i class="fas fa-info-circle mr-2"></i>';
+      else if (type === "assistant") icon = '<i class="fas fa-robot mr-2 opacity-70"></i>';
+      bubble.innerHTML = icon + text;
+      chatBox.appendChild(bubble);
+      chatBox.scrollTop = chatBox.scrollHeight;
+      return temporary ? bubble : null;
+    }
+
+    function addToHistory(query) {
+      const item = document.createElement("div");
+      item.className = "flex items-start gap-2 p-2 history-item rounded-lg transition-all cursor-pointer";
+      item.innerHTML = `<i class="fas fa-clock text-gray-400 mt-1 text-xs"></i><span class="flex-1">${query}</span>`;
+      item.onclick = () => { queryInput.value = query; queryInput.focus(); };
+      historyList.prepend(item);
+    }
+
+    function isChartJson(str) {
+      try {
+        const parsed = JSON.parse(str);
+        return parsed && parsed.type && parsed.data && parsed.options;
+      } catch { return false; }
+    }
+
+    function renderChart(config) {
+      chartCanvas.classList.remove("hidden");
+      if (myChart) myChart.destroy();
+      myChart = new Chart(chartCanvas, config);
+    }
+  </script>
+</body>
+</html>
