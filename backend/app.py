@@ -11,29 +11,6 @@ from backend.vector_store import create_vectorstore, load_vectorstore
 from backend.rag_engine import build_qa_chain
 from backend.sql_agent import build_sql_agent
 
-def run_with_feedback(agent, query, max_attempts=1):
-    attempt = 0
-    last_error = ""
-    while attempt < max_attempts:
-        try:
-            result = agent.run(query)
-            return result
-        except Exception as e:
-            last_error = str(e)
-            # Feedback prompt for self-correction
-            query = (
-                f"Your previous response could not be parsed due to this error:\n"
-                f"{last_error}\n"
-                "Please strictly follow the required format and do not provide troubleshooting advice or explanations. "
-                "Respond only in the specified format."
-                f"\nOriginal question: {query}"
-            )
-            attempt += 1
-    # If all attempts fail, return the last error
-    return f"❌ Structured query failed after {max_attempts} attempts: {last_error}"
-
-
-
 app = Flask(__name__)
 CORS(app)
 
@@ -105,7 +82,7 @@ def structured_query():
 
     try:
         agent = build_sql_agent()  # No db_key needed
-        response = run_with_feedback(agent, user_query)
+        response = agent.run(user_query + "(Don't limit queries by default only do it if it is explicitly mentioned by user)")
         return jsonify({"response": response})
     except Exception as e:
         return jsonify({"error": f"Structured query failed: {str(e)}"}), 500
