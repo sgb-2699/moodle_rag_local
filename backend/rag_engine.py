@@ -5,7 +5,7 @@ from langchain_community.llms import Ollama
 
 from langchain_google_genai import ChatGoogleGenerativeAI
 
-local = False
+local = True
 
 if(local):
     def build_qa_chain(vectorstore, model_name="mistral"):
